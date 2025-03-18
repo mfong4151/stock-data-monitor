@@ -26,9 +26,20 @@ async fn main() -> Result<(), Error> {
     };
 
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    let email_task = tokio::spawn(async {
+        let email_res = send_email().await;
+        if let Err(e) = email_res {
+            eprintln!("Failed to send email {}", e);
+        }
+    });
 
-    axum::serve(listener, app).await.unwrap();
-    let _ = send_email().await;
-
+    tokio::select! {
+        _ = axum::serve(listener, app) => {
+        eprintln!("Server stopped unexpectedly")
+    },
+      _ = email_task => {
+        eprintln!("Email sent");
+      }
+  }
     Ok(())
 }
