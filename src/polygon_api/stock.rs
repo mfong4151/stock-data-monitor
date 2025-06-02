@@ -1,6 +1,10 @@
-use std::{collections::{HashMap, VecDeque}, hash::Hash};
+use std::collections::{HashMap, VecDeque};
+use crate::data_polling::alert_cluster::AlertCluster;
+use crate::polygon_api::stock_data_response::PriceDatum;
+use crate::polygon_api::fetch_data::{NULL_STOCK_DATA_RESPONSE, EMPTY_RESPONSE_DOUBLE_FLAG};
 
 type RawDataTableRow = HashMap<String, f64>;
+
 /**
  * One unit of stock data, any data that belongs to a particular point should be kept here as opposed to on the larger StockData struct
  *
@@ -71,11 +75,8 @@ impl VolumeAttr {
 
 
 /*
- * TODO: Refactor to make OHLC be VecDeq<PriceDatum> instead of individual VecDeq<f64>
- * In the future we can consider unfolding them to be individual queus
- *
- * An internal representation of a data corresponding to a stock
- * The highs, data for the OHLCV at index i all correspond to each otherj
+ * An internal representation of a data corresponding to a stock,
+ * The main container to "hold" stock data over multiple loop iterations and timeframes
  *
  * name, & 'a str: The ticker name
  * opens, Vec<f64> :  opens
@@ -127,82 +128,111 @@ impl<'a> StockData<'a> {
         self.stock_data = VecDeque::from(stock_data_points);
     }
 
-    pub fn analyze(&mut self) {
-        self.determine_high_low_type();
-        self.determine_high_low_type();
-        self.update_high_low_queue();
-        self.current_trend = self.parse_trend();
+    pub fn analyze(&mut self) -> &AlertCluster {
+
+
+      return &AlertCluster { is_volume_spike: false } 
     }
 
-    fn determine_high_low_type(&mut self) {
-        let last_idx = self.stock_data.len() - 1;
-        let last_price_datum = &mut self.stock_data[last_idx];
-        // if self.is_high(&self.stock_data) {
-        //     last_price_datum.high_low_type = Some(HighLow::HIGH);
-        // } else if self.is_low(&self.stock_data) {
-        //     last_price_datum.high_low_type = Some(HighLow::LOW);
-        // } else {
-        //     last_price_datum.high_low_type = None;
-        // }
-    }
-    fn update_high_low_queue(&mut self) {
-        // ...
-    }
-
-    fn is_high(price_data: &VecDeque<StockDatum>) -> bool {
-        return true;
-    }
-
-    fn is_low(price_data: &VecDeque<StockDatum>) -> bool {
-        return true;
-    }
-
-    /**
-     * Parses the trend of the stock
-     *
-     * @param high_low_queue a VecDeque<StockData> of the queue
-     * @return a value in the Trend enum
-     */
-    fn parse_trend(&self) -> Trend {
-        if self.high_low_queue.len() < 4 {
-            return Trend::UNKNOWN;
-        }
-
-        let first = self.high_low_queue[0];
-        let second = self.high_low_queue[1];
-        let third = self.high_low_queue[2];
-        let fourth: &StockDatum = self.high_low_queue[3]; //Fourth is mutable because we double account for trend, we update the trend here
-
-        let mut trend_direction = Trend::SIDEWAYS;
-
-        if first.high_low_type == Some(HighLow::HIGH) {
-            if first.high < third.high && second.low < fourth.low {
-                trend_direction = Trend::UPTREND;
-            } else if first.high >= third.high && second.low >= fourth.low {
-                trend_direction = Trend::DOWNTREND;
-            }
-        } else if first.high_low_type == Some(HighLow::LOW) {
-            if first.low >= third.low && second.high >= fourth.high {
-                trend_direction = Trend::DOWNTREND;
-            } else if first.low < third.low && second.high < fourth.high {
-                trend_direction = Trend::UPTREND;
-            }
-        }
-
-        return trend_direction;
-    }
-
-    
-
-    pub fn format_flat_analysis_data(flat_data: HashMap<String, f64>) {
-      let early_volume: String =  "early_volume".to_string();
-      let mid_volume: String =  "mid_volume".to_string();
-      let end_volume: String =  "end_volume".to_string();
-    
+    pub fn calculate_standard_deviation(&mut self){
       
 
-
     }
+
+    pub fn add_stock_data(
+      &mut self, 
+      stock_data_response: &PriceDatum
+  ) -> (f64, f64, f64, f64) {
+      // In the case of bad responses return 0.0 *4, this is a flag that we shouldn't include the data point 
+      if stock_data_response == &NULL_STOCK_DATA_RESPONSE {
+          return EMPTY_RESPONSE_DOUBLE_FLAG;
+      }
+  
+      let last_close = &stock_data_response.close;
+      let (ema_9, ema_20) = Self::calculate_emas(&self.stock_data, last_close);
+  
+      let incoming_data = StockDatum {
+          open: stock_data_response.open,
+          high: stock_data_response.high,
+          low: stock_data_response.low,
+          close: stock_data_response.close,
+          volume: stock_data_response.volume,
+          ema9: ema_9,
+          ema20: ema_20,
+          timestamp: stock_data_response.timestamp,
+          high_low_type: None,
+      };
+  
+      self.stock_data.push_back(incoming_data);
+      return (stock_data_response.high, stock_data_response.low, ema_9, ema_20);
+  }
+
+
+  /**
+   * Encapsulates logic related to retrieving emas,
+   * mostly broken into this separate function in order to keep edge case articulation cleaner.
+   *
+   * Attempts to cover the following edge cases
+   * 1. When we have a stock that we're analyizing that we just added to the the tickers to scan for and there is no length to the stock_data vec, i.e. to prevent underflow
+   *
+   * @param stock_data a veqdeque of stock data.
+   * @param  last_close, a float representing the last close
+   *
+   * @return return value description.
+   */
+  fn calculate_emas(stock_data: &VecDeque<StockDatum>, last_close: &f64) -> (f64, f64) {
+    let mut ema_9: f64;
+    let mut ema_20: f64;
+    let length_stock_data: usize = stock_data.len();
+
+    //Ema 9
+
+    if stock_data.len() < 9 {
+        ema_9 = 0.0;
+    } else {
+        let last_stock_idx = stock_data.len() - 1; // These values might underflow, in these cases we directly return 0.0
+        let last_ema_9 = stock_data[last_stock_idx].ema9;
+        if length_stock_data == 9 {
+            ema_9 = Self::calculate_sma(stock_data, 9.0);
+        }
+
+        ema_9 = Self::calculate_ema(9.0, last_close, &last_ema_9);
+    }
+
+    //EMA 20
+    if stock_data.len() < 20 {
+        ema_20 = 0.0;
+    } else {
+        let last_stock_idx = stock_data.len() - 1; // These values might underflow, in these cases we directly return 0.0
+        let last_ema_20 = stock_data[last_stock_idx].ema20;
+        if length_stock_data == 20 {
+            ema_20 = Self::calculate_sma(stock_data, 20.0);
+        }
+        ema_20 = Self::calculate_ema(20.0, last_close, &last_ema_20);
+    }
+
+  return (ema_9, ema_20);
+}
+
+  /**
+   * Generically calculate the sma length
+   * TODO: Refactor to use VecDeque.range, and compare performance.
+   */
+  fn calculate_sma(stock_data: &VecDeque<StockDatum>, sma_length: f64) -> f64 {
+    let mut sum: f64 = 0.0;
+
+    let length_stock_data: usize = stock_data.len();
+    for idx in 0..length_stock_data {
+        sum += stock_data[length_stock_data - 1 - idx].close;
+    }
+
+    return sum / sma_length;
+  }
+
+  //smoothing: 2.0
+  pub fn calculate_ema(period: f64, close: &f64, prev_ema: &f64) -> f64 {
+    close * (2.0 / (1.0 + period)) + prev_ema * (1.0 - 2.0 / (1.0 + period))
+  }
 
 }
 
