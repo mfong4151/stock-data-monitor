@@ -236,15 +236,6 @@ impl<'a> StockData<'a> {
 
 }
 
-/*
- * Represents a stock position that we hold
- */
-pub struct StockPosition {
-    pub name: String,
-    pub entry: f64,
-    pub stop: f64,
-    pub long_short: LongShort,
-}
 
 /*
  * Represents the value of a high or low.
