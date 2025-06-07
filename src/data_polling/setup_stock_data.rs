@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use crate::polygon_api::stock::StockData;
 
 
- pub fn setup_stock_data<'a>(tickers:  &'a Vec<&'a str>)-> HashMap<String, StockData<'a> >{
+/**
+ * On startup, gets any cache of stock data
+ */
+pub fn setup_stock_data<'a>(tickers:  &'a Vec<&'a str>)-> HashMap<String, StockData<'a> >{
 
 
   let mut res: HashMap<String, StockData<'a>> = HashMap::new();

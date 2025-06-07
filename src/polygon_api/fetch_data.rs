@@ -15,8 +15,7 @@ pub const NULL_STOCK_DATA_RESPONSE: PriceDatum = PriceDatum {
 pub const EMPTY_RESPONSE_DOUBLE_FLAG: (f64, f64, f64, f64) = (0.0, 0.0, 0.0, 0.0);
 
 /**
- *  TODO: Cleanup, a lot of this was taken from the algo
- *
+ * 
  */
 pub async fn fetch_data(
     ticker: &str,
@@ -26,7 +25,6 @@ pub async fn fetch_data(
     api_key: &str
 ) -> Result<PriceDatum, Box<dyn Error>> {
     //Initialize with a default falsey response
-    let mut stock_data_response: PriceDatum = NULL_STOCK_DATA_RESPONSE;
 
     let request_url = format!(
         "https://api.polygon.io/v2/aggs/ticker/{}/range/{}/minute/{}/{}/?apiKey={}",
@@ -45,21 +43,15 @@ pub async fn fetch_data(
 
     let body: Result<PolygonResponse, reqwest::Error> = res.json::<PolygonResponse>().await;
 
-    let is_body_ok: bool = body.is_ok();
+    let is_validated_body: bool = body.is_ok() && !body.as_ref().unwrap().results.is_some();
 
-    if !is_res_ok {
-        println!("Error collecting data due to issue connecting to data provider for symbol {}", ticker);
-        return Ok(stock_data_response);
-    }
+    if !is_res_ok || is_validated_body {
+        let reason =  if !is_res_ok { "invalid respond"} else { "corrupt body"};
+        println!("Error collecting data due to issue connecting to data provider for symbol {} due to {}", ticker, reason);
+        return Ok(NULL_STOCK_DATA_RESPONSE);
+    } 
 
-    if is_body_ok && !body.as_ref().unwrap().results.is_some() {
-        println!("Request and response were succesful, but no body was found.");
-        return Ok(stock_data_response);
-
-    } else {
-        stock_data_response = format_price_datum(&body.unwrap());
-    }
-    Ok(stock_data_response)
+    Ok( format_price_datum(&body.unwrap()))
 }
 
 /*

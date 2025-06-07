@@ -79,17 +79,7 @@ impl VolumeAttr {
  * The main container to "hold" stock data over multiple loop iterations and timeframes
  *
  * name, & 'a str: The ticker name
- * opens, Vec<f64> :  opens
- * highs, Vec<f64> :  highs
- * lows, Vec<f64> :   lows
- * closes, Vec<f64>:  closes
- * volumes, Vec<u32>: volumes
- * ema_9s, Vec<f64>: The ema 9s *does this need to be a single value instead?
- * ema_20s, Vec<f64>: The ema 20s *does this need to be a single value instead?
- * high_candles:
- * low_candles:
- * resistances, VecDeque<f64>: The resistances of the current timeframe
- * supports, VecDeque<f64>: The supports of the current timeframe
+ * stock_data: a piece of stock_data
  * daily_resistances, VecDeque<f64>: daily chart resistances, not mutable
  * daily_supports, VecDeque<f64>: daily chart supports, not mutable
  * high_low_queue, VecDeque<StockDatum> a smaller VecDeque  that contains only the points necessary to determine trend
@@ -98,26 +88,31 @@ impl VolumeAttr {
 pub struct StockData<'a> {
     pub name: &'a str,
     pub stock_data: VecDeque<StockDatum>,
+    stock_data_capacity: u32,
     pub daily_resistances: VecDeque<f64>,
     pub daily_supports: VecDeque<f64>,
     pub high_low_queue: VecDeque<&'a StockDatum>,
     pub volume_attrs: VolumeAttr,
     pub current_trend: Trend,
+    //Used for standard deviation calculations
+    sum_volume: u64
 }
 
 impl<'a> StockData<'a> {
     /*
      *    Instantiates an empty new struct
      */
-    pub fn new(name: &'a str) -> StockData<'a> {
+    pub fn new(name: &'a str, stock_data_capacity: u32) -> StockData<'a> {
         StockData {
             name,
             stock_data: VecDeque::new(),
+            stock_data_capacity,
             daily_resistances: VecDeque::new(),
             daily_supports: VecDeque::new(),
             high_low_queue: VecDeque::new(),
             volume_attrs: VolumeAttr::new(),
             current_trend: Trend::UNKNOWN,
+            sum_volume: 0
         }
     }
 
@@ -128,10 +123,28 @@ impl<'a> StockData<'a> {
         self.stock_data = VecDeque::from(stock_data_points);
     }
 
-    pub fn analyze(&mut self) -> &AlertCluster {
-
+    /**
+     * Analyzes stock data. 
+     * @maybe_volume: a volume if it was evicted from the queue alongside its stock
+     * 
+     * @return As a side effect fires off an alert cluster, which tells us if immediately we need t o 
+     */
+    pub fn analyze(&mut self,  maybe_volume: Option<StockDatum>) -> &AlertCluster {
+      let maybe_most_recent_datum = self.stock_data.get(self.stock_data.len() - 1);
+      match(maybe_most_recent_datum){
+        Some(datum) => { 
+          // cache_volume();
+          datum.volume;
+          ()
+        },
+        None => {}
+      }
 
       return &AlertCluster { is_volume_spike: false } 
+    }
+
+    fn cache_volume (){
+
     }
 
     pub fn calculate_standard_deviation(&mut self){
@@ -166,6 +179,17 @@ impl<'a> StockData<'a> {
       self.stock_data.push_back(incoming_data);
       return (stock_data_response.high, stock_data_response.low, ema_9, ema_20);
   }
+
+    /**
+     * Pops from the front of the StockDataVeqDeque if theres 
+     */
+    pub fn pop_front_if_at_capacity(&mut self) -> Option<StockDatum> {
+
+      if self.stock_data.len() as u32 > self.stock_data_capacity {
+         return self.stock_data.pop_front();
+      }
+      None
+    }
 
 
   /**
