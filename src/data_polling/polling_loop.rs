@@ -16,7 +16,7 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
   let timeframe: u32 = 15;  
   let timestamp_from: i64 = 15;
   let timestamp_to: i64 = 15;
-  let api_key = "awgeagawa";
+  let api_key = "awgeagawa"; // TODO needs an actual api key, implement with .env
    
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
 

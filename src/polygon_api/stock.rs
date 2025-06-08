@@ -235,8 +235,8 @@ impl<'a> StockData<'a> {
         ema_20 = Self::calculate_ema(20.0, last_close, &last_ema_20);
     }
 
-  return (ema_9, ema_20);
-}
+    return (ema_9, ema_20);
+  }
 
   /**
    * Generically calculate the sma length
@@ -257,6 +257,43 @@ impl<'a> StockData<'a> {
   pub fn calculate_ema(period: f64, close: &f64, prev_ema: &f64) -> f64 {
     close * (2.0 / (1.0 + period)) + prev_ema * (1.0 - 2.0 / (1.0 + period))
   }
+
+
+
+  fn is_volume_spike(self, volumes: &[f64], k: f64) -> bool {
+    if k > 3.0 {
+        panic!("Value of k should never be over 3");
+    }
+
+    let avg = self.get_average(volumes);
+    let variance = self.get_variance(volumes, avg);
+    let std_dev = variance.sqrt();
+
+    let upper_threshold = avg + k * std_dev;
+
+    let curr_vol = *volumes.last().expect("Volumes array should not be empty");
+
+    curr_vol > upper_threshold
+  }
+
+  fn get_average(&self, volumes: &[f64]) -> f64 {
+      let sum: f64 = volumes.iter().sum();
+      sum / volumes.len() as f64
+  }
+
+  fn get_variance(&self, volumes: &[f64], average: f64) -> f64 {
+      let mut res = 0.0;
+      let length = volumes.len() as f64;
+
+      for &volume in volumes {
+          let squared_diff = (volume - average).powi(2);
+          res += squared_diff;
+      }
+
+      res / length
+  }
+
+  
 
 }
 
