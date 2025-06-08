@@ -129,7 +129,7 @@ impl<'a> StockData<'a> {
      * 
      * @return As a side effect fires off an alert cluster, which tells us if immediately we need t o 
      */
-    pub fn analyze(&mut self,  maybe_volume: Option<StockDatum>) -> &AlertCluster {
+    pub fn analyze(& self) -> &AlertCluster {
       let maybe_most_recent_datum = self.stock_data.get(self.stock_data.len() - 1);
       match(maybe_most_recent_datum){
         Some(datum) => { 

@@ -11,8 +11,6 @@ use crate::{aws_ses::send_email::send_email, data_polling::alert_cluster::{self,
  * 3. Determine whether the state of data warrants sending an alert. If so send the alert
  */
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
-
-  
   // TODO put in real values here
   let timeframe: u32 = 15;  
   let timestamp_from: i64 = 15;
@@ -25,23 +23,25 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
     
     let stock_data =  stock_data_map.get_mut(&ticker).unwrap();
     let polygon_data = fetch_data(&ticker, &timeframe, &timestamp_from, &timestamp_to, api_key).await;
+    
 
     stock_data.add_stock_data(&polygon_data.unwrap());
+  
+    let alert_cluster: bool = stock_data.analyze().is_alert_fireable();
 
-    let alert_cluster: &AlertCluster = match stock_data.pop_front_if_at_capacity() {
+    match stock_data.pop_front_if_at_capacity() {
         // TODO create a method that adds stock data to a database. 
-        Some(data)  => &stock_data.analyze(Some(data)),
-        None =>  stock_data.analyze(None),
+        Some(data)  => {},
+        None =>  {},
     };
 
     
-    if alert_cluster.is_alert_fireable(){
+    if alert_cluster{
       let email_res = send_email().await;
       if let Err(e) = email_res {
           eprintln!("Failed to send email {}", e);
       }
     }
-
 
   }
 
