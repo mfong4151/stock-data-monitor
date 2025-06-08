@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{aws_ses::send_email::send_email, data_polling::alert_cluster::{self, AlertCluster}, polygon_api::{fetch_data::fetch_data, stock::{self, StockData}}};
+use crate::{aws_ses::send_email::send_email, polygon_api::{fetch_data::fetch_data, stock::StockData}};
 
 
 /**
@@ -11,6 +11,7 @@ use crate::{aws_ses::send_email::send_email, data_polling::alert_cluster::{self,
  * 3. Determine whether the state of data warrants sending an alert. If so send the alert
  */
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
+  
   // TODO put in real values here
   let timeframe: u32 = 15;  
   let timestamp_from: i64 = 15;

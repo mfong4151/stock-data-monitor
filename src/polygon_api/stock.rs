@@ -86,7 +86,7 @@ impl VolumeAttr {
  * current_trend, Trend : The current overall trend of the equity
  */
 pub struct StockData<'a> {
-    pub name: &'a str,
+    pub name: String,
     pub stock_data: VecDeque<StockDatum>,
     stock_data_capacity: u32,
     pub daily_resistances: VecDeque<f64>,
@@ -102,7 +102,7 @@ impl<'a> StockData<'a> {
     /*
      *    Instantiates an empty new struct
      */
-    pub fn new(name: &'a str, stock_data_capacity: u32) -> StockData<'a> {
+    pub fn new(name: String, stock_data_capacity: u32) -> StockData<'a> {
         StockData {
             name,
             stock_data: VecDeque::new(),
