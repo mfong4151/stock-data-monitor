@@ -7,9 +7,6 @@ use axum::{ routing::{ get }, Router };
 use data_polling::setup_stock_data::setup_stock_data;
 use polygon_api::stock::StockData;
 use std::env;
-use aws_ses::send_email::send_email;
-use data_polling::*;
-
 
 
 async fn test() -> &'static str {
@@ -34,8 +31,9 @@ async fn main() -> Result<(), Error> {
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     let _ = tokio::spawn(async {
         
-        let tickers = vec!["QQQ"];
+        let tickers = vec!["QQQ", "TSLA", "NVDA"]; // TODO move somewhere else
         let mut initial_stock_data: HashMap<String, StockData> = setup_stock_data(&tickers);
+
 
         data_polling::polling_loop::monitor_stock_data(&mut initial_stock_data).await;
         // let email_res = send_email().await;

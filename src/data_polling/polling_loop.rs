@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread, time::Duration};
+
+use dotenv::dotenv;
+use chrono::{Local, Timelike};
+use std::env;
 
 use crate::{aws_ses::send_email::send_email, polygon_api::{fetch_data::fetch_data, stock::StockData}};
 
@@ -11,39 +15,70 @@ use crate::{aws_ses::send_email::send_email, polygon_api::{fetch_data::fetch_dat
  * 3. Determine whether the state of data warrants sending an alert. If so send the alert
  */
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
-  
+
   // TODO put in real values here
-  let timeframe: u32 = 15;  
-  let timestamp_from: i64 = 15;
-  let timestamp_to: i64 = 15;
-  let api_key = "awgeagawa"; // TODO needs an actual api key, implement with .env
-   
+  let timeframe: u32  = 5;  
+      dotenv().ok();
+
+  let api_key =  env::var("POLYGON_API_KEY") 
+        .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.
+
+  let mut prev_fetched_min: u32  = 61; //First value is 61 because we will never be at 61 minutes  in a traditional clock
+ 
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
 
-  for ticker in keys {
+  loop {
+    let now = Local::now();
+    let timestamp_from: i64 = now.timestamp_millis( );
+    let timestamp_to: i64 = timestamp_from + timeframe as i64;
+    let now_min =  now.minute();
     
-    let stock_data =  stock_data_map.get_mut(&ticker).unwrap();
-    let polygon_data = fetch_data(&ticker, &timeframe, &timestamp_from, &timestamp_to, api_key).await;
-    
+    let is_market_closed =  is_market_closed(&now);  
+    let is_already_fetched = now_min - now_min % timeframe == prev_fetched_min;
 
-    stock_data.add_stock_data(&polygon_data.unwrap());
-  
-    let alert_cluster: bool = stock_data.analyze().is_alert_fireable();
-
-    match stock_data.pop_front_if_at_capacity() {
-        // TODO create a method that adds stock data to a database. 
-        Some(data)  => {},
-        None =>  {},
-    };
-
-    
-    if alert_cluster{
-      let email_res = send_email().await;
-      if let Err(e) = email_res {
-          eprintln!("Failed to send email {}", e);
-      }
+    if is_market_closed || is_already_fetched {
+      println!("{:?}", if is_market_closed { "Waiting for market to open"} else { "Waiting for data to become availible before fetching"});
+      thread::sleep(Duration::from_secs(timeframe as u64 * 60));
+      continue;
     }
 
-  }
+    for ticker in &keys {
+      
+      let stock_data =  stock_data_map.get_mut(ticker).unwrap();
+      let polygon_data = fetch_data(&ticker, &timeframe, &timestamp_from, &timestamp_to, &api_key).await;
+      
 
+      stock_data.add_stock_data(&polygon_data.unwrap());
+    
+      // let alert_cluster: bool = stock_data.analyze().is_alert_fireable();
+
+      // match stock_data.pop_front_if_at_capacity() {
+      //     // TODO create a method that adds stock data to a database. 
+      //     Some(data)  => {},
+      //     None =>  {},
+      // };
+
+      
+      // if alert_cluster{
+      //   let email_res = send_email().await;
+      //   if let Err(e) = email_res {
+      //       eprintln!("Failed to send email {}", e);
+      //   }
+      // }
+
+        prev_fetched_min  = now_min - now_min % timeframe;
+
+
+      // TODO remove when confirmed
+      for row in stock_data.stock_data.iter(){
+          println!("ticker: {:?}, close: {:?}, open: {:?}, high:  {:?}, low: {:?} \n", ticker, row.close, row.open, row.high, row.low)
+      }
+
+
+    }
+  }
+}
+
+fn is_market_closed(now: &chrono::DateTime<Local>)-> bool{
+  now.hour() < 6 && now.minute() < 30 || now.hour() > 13
 }

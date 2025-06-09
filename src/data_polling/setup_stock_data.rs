@@ -17,6 +17,6 @@ pub fn setup_stock_data<'a>(tickers:  &'a Vec<&'a str>)-> HashMap<String, StockD
     let _ = &res.insert(ticker.to_string(), StockData::new(name, 50));
   });
 
+
   return res;
-  
  } 
