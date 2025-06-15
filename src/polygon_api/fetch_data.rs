@@ -3,6 +3,7 @@ use std::error::Error;
 use crate::polygon_api::{ stock_data_response::*, stock::{StockData,StockDatum}};
 
 
+//TODO refactor to use twelvedata's api
 pub const NULL_STOCK_DATA_RESPONSE: PriceDatum = PriceDatum {
     timestamp: 0,
     volume: 0,
@@ -51,6 +52,7 @@ pub async fn fetch_data(
         return Ok(NULL_STOCK_DATA_RESPONSE);
     } 
 
+  
     Ok( format_price_datum(&body.unwrap()))
 }
 

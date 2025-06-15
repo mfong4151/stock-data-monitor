@@ -17,20 +17,22 @@ use crate::{aws_ses::send_email::send_email, polygon_api::{fetch_data::fetch_dat
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
 
   // TODO put in real values here
-  let timeframe: u32  = 5;  
+  let timeframe: u32  = 15;  
       dotenv().ok();
 
   let api_key =  env::var("POLYGON_API_KEY") 
         .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.
 
   let mut prev_fetched_min: u32  = 61; //First value is 61 because we will never be at 61 minutes  in a traditional clock
- 
+  const TIME_OFFSET: i64 = 15;
+  const MINUTES_TO_MILIS: i64 = 60 * 1000;
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
 
   loop {
     let now = Local::now();
-    let timestamp_from: i64 = now.timestamp_millis( );
-    let timestamp_to: i64 = timestamp_from + timeframe as i64;
+    let timestamp_to: i64 = now.timestamp_millis() - TIME_OFFSET * MINUTES_TO_MILIS ;
+    let timestamp_from: i64 = timestamp_to -  timeframe as i64 * MINUTES_TO_MILIS;
+
     let now_min =  now.minute();
     
     let is_market_closed =  is_market_closed(&now);  
@@ -80,5 +82,5 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
 }
 
 fn is_market_closed(now: &chrono::DateTime<Local>)-> bool{
-  now.hour() < 6 && now.minute() < 30 || now.hour() > 13
+  now.hour() * 60 + now.minute() < 390 || now.hour() > 13
 }
