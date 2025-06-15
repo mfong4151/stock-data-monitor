@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use chrono::{Local, Timelike};
 use std::env;
 
-use crate::{aws_ses::send_email::send_email, polygon_api::{fetch_data::fetch_data, stock::StockData}};
+use crate::{aws_ses::send_email::send_email, data_polling::manage_offset::manage_offset, polygon_api::{fetch_data::fetch_data, stock::StockData}};
 
 
 /**
@@ -24,13 +24,14 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
         .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.
 
   let mut prev_fetched_min: u32  = 61; //First value is 61 because we will never be at 61 minutes  in a traditional clock
-  const TIME_OFFSET: i64 = 15;
+  let  (time_offset, is_using_offset) = manage_offset();
   const MINUTES_TO_MILIS: i64 = 60 * 1000;
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
 
+  1/0;
   loop {
     let now = Local::now();
-    let timestamp_to: i64 = now.timestamp_millis() - TIME_OFFSET * MINUTES_TO_MILIS ;
+    let timestamp_to: i64 = now.timestamp_millis() - time_offset * MINUTES_TO_MILIS ;
     let timestamp_from: i64 = timestamp_to -  timeframe as i64 * MINUTES_TO_MILIS;
 
     let now_min =  now.minute();
@@ -38,7 +39,7 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
     let is_market_closed =  is_market_closed(&now);  
     let is_already_fetched = now_min - now_min % timeframe == prev_fetched_min;
 
-    if is_market_closed || is_already_fetched {
+    if !is_using_offset && (is_market_closed || is_already_fetched) {
       println!("{:?}", if is_market_closed { "Waiting for market to open"} else { "Waiting for data to become availible before fetching"});
       thread::sleep(Duration::from_secs(timeframe as u64 * 60));
       continue;
