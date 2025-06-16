@@ -41,6 +41,7 @@ pub async fn fetch_data(
     let is_res_ok = res.status().is_success();
     // let raw_json: serde_json::Value = res.json().await?;
     // println!("Raw JSON response: {:?}", raw_json); // debugger statement
+    // return Ok(NULL_STOCK_DATA_RESPONSE);
 
     let body: Result<PolygonResponse, reqwest::Error> = res.json::<PolygonResponse>().await;
 

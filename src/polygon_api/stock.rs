@@ -95,7 +95,7 @@ pub struct StockData<'a> {
     pub volume_attrs: VolumeAttr,
     pub current_trend: Trend,
     //Used for standard deviation calculations
-    sum_volume: u64
+    pub sum_volume: u64
 }
 
 impl<'a> StockData<'a> {
@@ -133,7 +133,6 @@ impl<'a> StockData<'a> {
       let maybe_most_recent_datum = self.stock_data.get(self.stock_data.len() - 1);
       match(maybe_most_recent_datum){
         Some(datum) => { 
-          // cache_volume();
           datum.volume;
           ()
         },
@@ -151,6 +150,10 @@ impl<'a> StockData<'a> {
       
 
     }
+
+    /**
+     * TODO refactor to return a reference to self.
+     */
 
     pub fn add_stock_data(
       &mut self, 
@@ -175,8 +178,13 @@ impl<'a> StockData<'a> {
           timestamp: stock_data_response.timestamp,
           high_low_type: None,
       };
-  
+
       self.stock_data.push_back(incoming_data);
+
+      //Add volume to cached volume
+      self.sum_volume += stock_data_response.volume;
+  
+      
       return (stock_data_response.high, stock_data_response.low, ema_9, ema_20);
   }
 
@@ -293,7 +301,22 @@ impl<'a> StockData<'a> {
       res / length
   }
 
-  
+  /**
+   * Manages eviction behavior:
+   * 1. Removes a price datum from the queue.
+   * 2. For the cached sum_volume, decrements it by the volume
+   * 
+   * TODO refactor stock_data_capacity to be a usize
+   */
+  pub fn maybe_evict_if_over_cap(&mut self) -> Option<StockDatum> {
+    if self.stock_data.len() > self.stock_data_capacity as usize {
+      let price_datum =  self.stock_data.pop_front().unwrap();
+      self.sum_volume -= price_datum.volume;
+      return Some(price_datum);
+    }
+
+    return None;
+  }
 
 }
 

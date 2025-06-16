@@ -24,14 +24,14 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
         .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.
 
   let mut prev_fetched_min: u32  = 61; //First value is 61 because we will never be at 61 minutes  in a traditional clock
-  let  (time_offset, is_using_offset) = manage_offset();
+  let  offsetted_time = manage_offset(); // TODO get rid of this in prod
+  let is_using_offset = true;
   const MINUTES_TO_MILIS: i64 = 60 * 1000;
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
 
-  1/0;
   loop {
     let now = Local::now();
-    let timestamp_to: i64 = now.timestamp_millis() - time_offset * MINUTES_TO_MILIS ;
+    let timestamp_to: i64 = if !is_using_offset{now.timestamp_millis() } else {offsetted_time};
     let timestamp_from: i64 = timestamp_to -  timeframe as i64 * MINUTES_TO_MILIS;
 
     let now_min =  now.minute();
@@ -39,7 +39,7 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
     let is_market_closed =  is_market_closed(&now);  
     let is_already_fetched = now_min - now_min % timeframe == prev_fetched_min;
 
-    if !is_using_offset && (is_market_closed || is_already_fetched) {
+    if (!is_using_offset || is_market_closed) || is_already_fetched {
       println!("{:?}", if is_market_closed { "Waiting for market to open"} else { "Waiting for data to become availible before fetching"});
       thread::sleep(Duration::from_secs(timeframe as u64 * 60));
       continue;
@@ -52,8 +52,8 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
       
 
       stock_data.add_stock_data(&polygon_data.unwrap());
-    
-      // let alert_cluster: bool = stock_data.analyze().is_alert_fireable();
+      stock_data.maybe_evict_if_over_cap();
+      let is_alert_fireable: bool = stock_data.analyze().is_alert_fireable();
 
       // match stock_data.pop_front_if_at_capacity() {
       //     // TODO create a method that adds stock data to a database. 
@@ -62,12 +62,12 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
       // };
 
       
-      // if alert_cluster{
-      //   let email_res = send_email().await;
-      //   if let Err(e) = email_res {
-      //       eprintln!("Failed to send email {}", e);
-      //   }
-      // }
+      if is_alert_fireable{
+        let email_res = send_email().await;
+        if let Err(e) = email_res {
+            eprintln!("Failed to send email {}", e);
+        }
+      }
 
         prev_fetched_min  = now_min - now_min % timeframe;
 
