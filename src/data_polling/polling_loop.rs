@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use chrono::{Local, Timelike};
 use std::env;
 
-use crate::{aws_ses::send_email::send_email, data_polling::manage_offset::manage_offset, polygon_api::{fetch_data::fetch_data, stock::StockData}};
+use crate::{aws_ses::send_email::send_email, data_polling::manage_offset::{manage_offset, parse_offsetted_time}, polygon_api::{fetch_data::fetch_data, stock::StockData}};
 
 
 /**
@@ -17,31 +17,31 @@ use crate::{aws_ses::send_email::send_email, data_polling::manage_offset::manage
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
 
   // TODO put in real values here
-  let timeframe: u32  = 15;  
+  let timeframe: u32  = 5;  
       dotenv().ok();
 
   let api_key =  env::var("POLYGON_API_KEY") 
         .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.
-
+  let is_using_timestamp = false;
   let mut prev_fetched_min: u32  = 61; //First value is 61 because we will never be at 61 minutes  in a traditional clock
-  let  offsetted_time = manage_offset(); // TODO get rid of this in prod
-  let is_using_offset = true;
   const MINUTES_TO_MILIS: i64 = 60 * 1000;
   let keys: Vec<String> = stock_data_map.keys().cloned().collect(); 
+  
+  parse_offsetted_time(manage_offset());
 
   loop {
     let now = Local::now();
-    let timestamp_to: i64 = if !is_using_offset{now.timestamp_millis() } else {offsetted_time};
+    let timestamp_to: i64 = if is_using_timestamp  {now.timestamp_millis() } else {manage_offset()};
     let timestamp_from: i64 = timestamp_to -  timeframe as i64 * MINUTES_TO_MILIS;
 
     let now_min =  now.minute();
     
     let is_market_closed =  is_market_closed(&now);  
     let is_already_fetched = now_min - now_min % timeframe == prev_fetched_min;
-
-    if (!is_using_offset || is_market_closed) || is_already_fetched {
+ 
+    if is_market_closed || is_already_fetched {
       println!("{:?}", if is_market_closed { "Waiting for market to open"} else { "Waiting for data to become availible before fetching"});
-      thread::sleep(Duration::from_secs(timeframe as u64 * 60));
+      thread::sleep(Duration::from_secs(60));
       continue;
     }
 
@@ -62,19 +62,19 @@ pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'
       // };
 
       
-      if is_alert_fireable{
-        let email_res = send_email().await;
-        if let Err(e) = email_res {
-            eprintln!("Failed to send email {}", e);
-        }
-      }
+      // if is_alert_fireable{
+      //   let email_res = send_email().await;
+      //   if let Err(e) = email_res {
+      //       eprintln!("Failed to send email {}", e);
+      //   }
+      // }
 
-        prev_fetched_min  = now_min - now_min % timeframe;
+      prev_fetched_min  = now_min - now_min % timeframe;
 
 
-      // TODO remove when confirmed
+        // TODO remove when confirmed
       for row in stock_data.stock_data.iter(){
-          println!("ticker: {:?}, close: {:?}, open: {:?}, high:  {:?}, low: {:?} \n", ticker, row.close, row.open, row.high, row.low)
+        println!("ticker: {:?}, close: {:?}, open: {:?}, high:  {:?}, low: {:?} \n", ticker, row.close, row.open, row.high, row.low);
       }
 
 

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Datelike, Local, Timelike, Weekday, NaiveDateTime};
 
+
 /**
  * Hard codes a time offset which allows us to test off hours 
  * 
@@ -34,14 +35,14 @@ pub fn manage_offset()-> i64 {
     0
   } * MINUTES_TO_MILIS * 60;
 
-  println!("Pushing time back at least 48 hours ago.\n If you've been pushed back to a holiday, you might need to hardcode a date around this.");
-  parse_offsetted_time(offsetted_time);
 
   return offsetted_time;
 }
 
 
-fn parse_offsetted_time(offsetted_time: i64) {
+pub fn parse_offsetted_time(offsetted_time: i64) {
+
+    println!("Pushing time back at least 48 hours ago.\n If you've been pushed back to a holiday, you might need to hardcode a date around this.");
     let naive = NaiveDateTime::from_timestamp_millis(offsetted_time)
         .expect("Invalid timestamp in milliseconds");
 

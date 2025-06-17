@@ -129,17 +129,10 @@ impl<'a> StockData<'a> {
      * 
      * @return As a side effect fires off an alert cluster, which tells us if immediately we need t o 
      */
-    pub fn analyze(& self) -> &AlertCluster {
-      let maybe_most_recent_datum = self.stock_data.get(self.stock_data.len() - 1);
-      match(maybe_most_recent_datum){
-        Some(datum) => { 
-          datum.volume;
-          ()
-        },
-        None => {}
-      }
+    pub fn analyze(& self) -> AlertCluster {
+      let is_volume_spike = self.is_volume_spike(3.0);
 
-      return &AlertCluster { is_volume_spike: false } 
+      return AlertCluster { is_volume_spike: is_volume_spike } 
     }
 
     fn cache_volume (){
@@ -268,13 +261,17 @@ impl<'a> StockData<'a> {
 
 
 
-  fn is_volume_spike(self, volumes: &[f64], k: f64) -> bool {
+  fn is_volume_spike(&self, k: f64) -> bool {
     if k > 3.0 {
         panic!("Value of k should never be over 3");
     }
 
-    let avg = self.get_average(volumes);
-    let variance = self.get_variance(volumes, avg);
+    let avg = self.sum_volume as f64 / self.stock_data.len() as f64;
+    let volumes: Vec<f64> = self.stock_data.iter()
+                                          .map(|datum| datum.volume)
+                                          .map(|volume| volume as f64)
+                                          .collect();
+    let variance = self.get_variance(&volumes, avg);
     let std_dev = variance.sqrt();
 
     let upper_threshold = avg + k * std_dev;
@@ -293,7 +290,7 @@ impl<'a> StockData<'a> {
       let mut res = 0.0;
       let length = volumes.len() as f64;
 
-      for &volume in volumes {
+      for volume in volumes {
           let squared_diff = (volume - average).powi(2);
           res += squared_diff;
       }
