@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
-use crate::data_polling::alert_cluster::AlertCluster;
+use crate::data_polling::alert_cluster::{AlertCluster, AlertClusterBuilder};
+use crate::data_polling::configs::{MAX_HOUR, MAX_MIN, MIN_HOUR, MIN_MINUTE};
 use crate::polygon_api::stock_data_response::PriceDatum;
 use crate::polygon_api::fetch_data::{NULL_STOCK_DATA_RESPONSE, EMPTY_RESPONSE_DOUBLE_FLAG};
 
@@ -129,10 +130,14 @@ impl<'a> StockData<'a> {
      * 
      * @return As a side effect fires off an alert cluster, which tells us if immediately we need t o 
      */
-    pub fn analyze(& self) -> AlertCluster {
-      let is_volume_spike = self.is_volume_spike(3.0);
+    pub fn analyze(& self, now_hour: u32, now_min:u32) -> AlertCluster {
+      
+      let is_time_to_fire_volume_spike =  (now_hour <= MIN_HOUR  && now_min <= MIN_MINUTE) || (now_hour >= MAX_HOUR && now_min >= MAX_MIN);
 
-      return AlertCluster { is_volume_spike: is_volume_spike } 
+      return AlertClusterBuilder::new()
+                .set_is_volume_spike(self.is_volume_spike(3.0))  
+                .filter_volume_spike(is_time_to_fire_volume_spike)
+                .build();
     }
 
     fn cache_volume (){
@@ -261,7 +266,15 @@ impl<'a> StockData<'a> {
 
 
 
+  /**
+  * Checks for abnormal spikes in volume. Systematically ignores the first 3 candles, 
+  * and last candle of the day as these are typically higher by nature, delegates to other alerts for this
+  */
   fn is_volume_spike(&self, k: f64) -> bool {
+
+        
+
+
     if k > 3.0 {
         panic!("Value of k should never be over 3");
     }
@@ -271,6 +284,7 @@ impl<'a> StockData<'a> {
                                           .map(|datum| datum.volume)
                                           .map(|volume| volume as f64)
                                           .collect();
+
     let variance = self.get_variance(&volumes, avg);
     let std_dev = variance.sqrt();
 

@@ -12,7 +12,42 @@ pub struct AlertCluster{
   
 }
 
+pub struct AlertClusterBuilder {
+  is_volume_spike: bool  
+}
+
+impl AlertClusterBuilder {
+    pub fn new() -> Self {
+        AlertClusterBuilder {
+            is_volume_spike: false, 
+        }
+    }
+
+    pub fn set_is_volume_spike(mut self, is_volume_spike: bool) -> Self {
+        self.is_volume_spike = is_volume_spike;
+        self
+    }
+
+    //Creates a constraint on the volume spike
+    // A condition that must be satisfied or it will not fire
+    pub fn filter_volume_spike(mut self, is_alert_fireable: bool) -> Self{ 
+      self.is_volume_spike = self.is_volume_spike && is_alert_fireable;
+      self
+    }
+
+    pub fn build(self) -> AlertCluster {
+        AlertCluster {
+            is_volume_spike: self.is_volume_spike,
+        }
+    }
+}
+
+
 impl AlertCluster {
+
+  pub fn to_builder() -> AlertClusterBuilder {
+        AlertClusterBuilder::new()
+    }
 
   pub fn is_alert_fireable(&self) -> bool {
     return self.is_volume_spike;
