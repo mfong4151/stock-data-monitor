@@ -1,6 +1,8 @@
 mod aws_ses;
 mod polygon_api;
 mod data_polling;
+mod database;
+mod schema;
 
 use std::{collections::HashMap, io::Error};
 use axum::{ routing::{ get }, Router };

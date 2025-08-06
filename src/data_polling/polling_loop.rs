@@ -22,8 +22,8 @@ use crate::{
 pub async fn monitor_stock_data(stock_data_map: &mut HashMap<String, StockData<'_>>) {
 
   // TODO put in real values here
-  let timeframe: u32  = 5;  
-      dotenv().ok();
+  let timeframe: u32  = 15;  
+  dotenv().ok();
 
   let api_key =  env::var("POLYGON_API_KEY") 
         .expect("Expecting POLYGON_API_KEY to be set"); // TODO  move API key out of here, make global.

@@ -19,7 +19,6 @@ pub struct StockDatum {
     pub ema9: f64,
     pub ema20: f64,
     pub timestamp: u64,
-    pub high_low_type: Option<HighLow>,
 }
 
 impl StockDatum {
@@ -33,7 +32,6 @@ impl StockDatum {
         ema20: dict.get("ema20").copied().unwrap_or(0.0),
         volume: dict.get("volume").copied().unwrap_or(0.0) as u64,
         timestamp: dict.get("timestamp").copied().unwrap_or(0.0) as u64,
-        high_low_type: None
       }
 
   }
@@ -94,7 +92,6 @@ pub struct StockData<'a> {
     pub daily_supports: VecDeque<f64>,
     pub high_low_queue: VecDeque<&'a StockDatum>,
     pub volume_attrs: VolumeAttr,
-    pub current_trend: Trend,
     //Used for standard deviation calculations
     pub sum_volume: u64
 }
@@ -112,7 +109,6 @@ impl<'a> StockData<'a> {
             daily_supports: VecDeque::new(),
             high_low_queue: VecDeque::new(),
             volume_attrs: VolumeAttr::new(),
-            current_trend: Trend::UNKNOWN,
             sum_volume: 0
         }
     }
@@ -174,7 +170,6 @@ impl<'a> StockData<'a> {
           ema9: ema_9,
           ema20: ema_20,
           timestamp: stock_data_response.timestamp,
-          high_low_type: None,
       };
 
       self.stock_data.push_back(incoming_data);
@@ -329,32 +324,4 @@ impl<'a> StockData<'a> {
     return None;
   }
 
-}
-
-
-/*
- * Represents the value of a high or low.
- */
-pub struct HighLowData {
-    pub value: f64,
-    pub close: f64,
-    pub high_low: HighLow,
-}
-
-#[derive(PartialEq)]
-pub enum HighLow {
-    HIGH,
-    LOW,
-    NEUTRAL,
-}
-pub enum LongShort {
-    LONG,
-    SHORT,
-}
-
-pub enum Trend {
-    SIDEWAYS,
-    UPTREND,
-    DOWNTREND,
-    UNKNOWN,
 }

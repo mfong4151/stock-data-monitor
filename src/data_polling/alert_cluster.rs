@@ -44,11 +44,6 @@ impl AlertClusterBuilder {
 
 
 impl AlertCluster {
-
-  pub fn to_builder() -> AlertClusterBuilder {
-        AlertClusterBuilder::new()
-    }
-
   pub fn is_alert_fireable(&self) -> bool {
     return self.is_volume_spike;
   }
